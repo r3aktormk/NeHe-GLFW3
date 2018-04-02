@@ -4,21 +4,22 @@
 // Visit NeHe Productions At www.demonews.com/hosted/nehe
 //
 
-#include <windows.h>  // Header File For Windows
-#include <gl\gl.h>	// Header File For The OpenGL32 Library
-#include <gl\glu.h>   // Header File For The GLu32 Library
-#include <gl\glaux.h> // Header File For The GLaux Library
-
 #include <stdio.h>  // Standard Input/Output Header File
 #include <stdlib.h> // Standard Library Files Header File
 #include <math.h>   // Math Library Header File
 #include <string.h> // String Header
+
+#include <gl\gl.h>   // Header File For The OpenGL32 Library
+#include <gl\glu.h>  // Header File For The GLu32 Library
+
 #include "model.h"  // Model Header (custom)
+
+#include "GLFW/glfw3.h"
 
 static HGLRC hRC; // Permanent Rendering Context
 static HDC hDC;   // Private GDI Device Context
 
-char *worldfile = "data\\world.txt";
+const char *worldfile = "data\\world.txt";
 
 BOOL keys[256]; // Array Used For The Keyboard Routine
 BOOL light;		// Lighting ON/OFF
@@ -101,12 +102,15 @@ void SetupWorld()
 }
 
 // Load Bitmaps And Convert To Textures
+// Disabled for now, you can add custom
+// loader like stbi or SOIL
+/*
 GLvoid LoadGLTextures()
 {
 	// Load Texture
 	AUX_RGBImageRec *texture1;
 
-	texture1 = auxDIBImageLoad("Data/mud.bmp");
+	texture1=auxDIBImageLoad("Data/mud.bmp");
 	if (!texture1)
 	{
 		exit(1);
@@ -115,26 +119,28 @@ GLvoid LoadGLTextures()
 	// Create Nearest Filtered Texture
 	glGenTextures(3, &texture[0]);
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, texture1->sizeX, texture1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, texture1->data);
 
 	// Create Linear Filtered Texture
 	glBindTexture(GL_TEXTURE_2D, texture[1]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, texture1->sizeX, texture1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, texture1->data);
 
 	// Create MipMapped Texture
 	glBindTexture(GL_TEXTURE_2D, texture[2]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, texture1->sizeX, texture1->sizeY, GL_RGB, GL_UNSIGNED_BYTE, texture1->data);
 };
 
+*/
+
 GLvoid InitGL(GLsizei Width, GLsizei Height) // This Will Be Called Right After The GL Window Is Created
 {
-	LoadGLTextures();		 // Load The Texture(s)
+	//LoadGLTextures();							// Load The Texture(s)
 	glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);	// Set The Blending Function For Translucency
@@ -228,187 +234,58 @@ GLvoid DrawGLScene(GLvoid)
 	}
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd,
-						 UINT message,
-						 WPARAM wParam,
-						 LPARAM lParam)
+static void error_callback(int error, const char *description)
 {
-	RECT Screen; // Used Later On To Get The Size Of The Window
-	GLuint PixelFormat;
-	static PIXELFORMATDESCRIPTOR pfd =
-		{
-			sizeof(PIXELFORMATDESCRIPTOR), // Size Of This Pixel Format Descriptor
-			1,							   // Version Number (?)
-			PFD_DRAW_TO_WINDOW |		   // Format Must Support Window
-				PFD_SUPPORT_OPENGL |	   // Format Must Support OpenGL
-				PFD_DOUBLEBUFFER,		   // Must Support Double Buffering
-			PFD_TYPE_RGBA,				   // Request An RGBA Format
-			16,							   // Select A 16Bit Color Depth
-			0, 0, 0, 0, 0, 0,			   // Color Bits Ignored (?)
-			0,							   // No Alpha Buffer
-			0,							   // Shift Bit Ignored (?)
-			0,							   // No Accumulation Buffer
-			0, 0, 0, 0,					   // Accumulation Bits Ignored (?)
-			16,							   // 16Bit Z-Buffer (Depth Buffer)
-			0,							   // No Stencil Buffer
-			0,							   // No Auxiliary Buffer (?)
-			PFD_MAIN_PLANE,				   // Main Drawing Layer
-			0,							   // Reserved (?)
-			0, 0, 0						   // Layer Masks Ignored (?)
-		};
-
-	switch (message) // Tells Windows We Want To Check The Message
-	{
-	case WM_CREATE:
-		hDC = GetDC(hWnd);							// Gets A Device Context For The Window
-		PixelFormat = ChoosePixelFormat(hDC, &pfd); // Finds The Closest Match To The Pixel Format We Set Above
-
-		if (!PixelFormat)
-		{
-			MessageBox(0, "Can't Find A Suitable PixelFormat.", "Error", MB_OK | MB_ICONERROR);
-			PostQuitMessage(0); // This Sends A 'Message' Telling The Program To Quit
-			break;				// Prevents The Rest Of The Code From Running
-		}
-
-		if (!SetPixelFormat(hDC, PixelFormat, &pfd))
-		{
-			MessageBox(0, "Can't Set The PixelFormat.", "Error", MB_OK | MB_ICONERROR);
-			PostQuitMessage(0);
-			break;
-		}
-
-		hRC = wglCreateContext(hDC);
-		if (!hRC)
-		{
-			MessageBox(0, "Can't Create A GL Rendering Context.", "Error", MB_OK | MB_ICONERROR);
-			PostQuitMessage(0);
-			break;
-		}
-
-		if (!wglMakeCurrent(hDC, hRC))
-		{
-			MessageBox(0, "Can't activate GLRC.", "Error", MB_OK | MB_ICONERROR);
-			PostQuitMessage(0);
-			break;
-		}
-
-		GetClientRect(hWnd, &Screen);
-		InitGL(Screen.right, Screen.bottom);
-		break;
-
-	case WM_DESTROY:
-	case WM_CLOSE:
-		ChangeDisplaySettings(NULL, 0);
-
-		wglMakeCurrent(hDC, NULL);
-		wglDeleteContext(hRC);
-		ReleaseDC(hWnd, hDC);
-
-		PostQuitMessage(0);
-		break;
-
-	case WM_KEYDOWN:
-		keys[wParam] = TRUE;
-		break;
-
-	case WM_KEYUP:
-		keys[wParam] = FALSE;
-		break;
-
-	case WM_SIZE:
-		ReSizeGLScene(LOWORD(lParam), HIWORD(lParam));
-		break;
-
-	default:
-		return (DefWindowProc(hWnd, message, wParam, lParam));
-	}
-	return (0);
+	fputs(description, stderr);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance,
-				   HINSTANCE hPrevInstance,
-				   LPSTR lpCmdLine,
-				   int nCmdShow)
+static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-	MSG msg;	 // Windows Message Structure
-	WNDCLASS wc; // Windows Class Structure Used To Set Up The Type Of Window
-	HWND hWnd;   // Storage For Window Handle
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GL_TRUE);
 
-	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-	wc.lpfnWndProc = (WNDPROC)WndProc;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = hInstance;
-	wc.hIcon = NULL;
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = NULL;
-	wc.lpszMenuName = NULL;
-	wc.lpszClassName = "OpenGL WinClass";
+	if (action == GLFW_PRESS)
+		keys[key] = true;
+	else if (action == GLFW_RELEASE)
+		keys[key] = false;
+}
 
-	if (!RegisterClass(&wc))
+int main(int argc, char *argv[])
+{
+
+	GLFWwindow *window;
+
+	glfwSetErrorCallback(error_callback);
+
+	if (!glfwInit())
+		exit(EXIT_FAILURE);
+
+	window = glfwCreateWindow(640, 480, "NeHe GLFW3", NULL, NULL);
+	if (!window)
 	{
-		MessageBox(0, "Failed To Register The Window Class.", "Error", MB_OK | MB_ICONERROR);
-		return FALSE;
+		glfwTerminate();
+		exit(EXIT_FAILURE);
 	}
 
-	hWnd = CreateWindow(
-		"OpenGL WinClass",
-		"Jeff Molofee's GL Code Tutorial ... NeHe '99", // Title Appearing At The Top Of The Window
+	glfwMakeContextCurrent(window);
+	glfwSetKeyCallback(window, key_callback);
 
-		WS_POPUP |
-			WS_CLIPCHILDREN |
-			WS_CLIPSIBLINGS,
-
-		0, 0,	 // The Position Of The Window On The Screen
-		640, 480, // The Width And Height Of The WIndow
-
-		NULL,
-		NULL,
-		hInstance,
-		NULL);
-
-	if (!hWnd)
-	{
-		MessageBox(0, "Window Creation Error.", "Error", MB_OK | MB_ICONERROR);
-		return FALSE;
-	}
-
-	DEVMODE dmScreenSettings; // Developer Mode
-
-	memset(&dmScreenSettings, 0, sizeof(DEVMODE));			  // Clear Room To Store Settings
-	dmScreenSettings.dmSize = sizeof(DEVMODE);				  // Size Of The Devmode Structure
-	dmScreenSettings.dmPelsWidth = 640;						  // Screen Width
-	dmScreenSettings.dmPelsHeight = 480;					  // Screen Height
-	dmScreenSettings.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT; // Pixel Mode
-	ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN); // Switch To Full Screen
-
-	ShowWindow(hWnd, SW_SHOW);
-	UpdateWindow(hWnd);
-	SetFocus(hWnd);
-	wglMakeCurrent(hDC, hRC);
-
+	InitGL(640, 480);
 	SetupWorld();
 
-	while (1)
+	while (!glfwWindowShouldClose(window))
 	{
-		// Process All Messages
-		while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
-		{
-			if (GetMessage(&msg, NULL, 0, 0))
-			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
-			else
-			{
-				return TRUE;
-			}
-		}
+
+		float ratio;
+		int width, height;
+
+		glfwGetFramebufferSize(window, &width, &height);
+		ratio = width / (float)height;
+
+		glViewport(0, 0, width, height);
+		glClear(GL_COLOR_BUFFER_BIT);
 
 		DrawGLScene();
-		SwapBuffers(hDC);
-		if (keys[VK_ESCAPE])
-			SendMessage(hWnd, WM_CLOSE, 0, 0);
 
 		if (keys['B'] && !bp)
 		{
@@ -425,6 +302,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 				glDisable(GL_DEPTH_TEST);
 			}
 		}
+
 		if (!keys['B'])
 		{
 			bp = FALSE;
@@ -457,6 +335,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 				glEnable(GL_LIGHTING);
 			}
 		}
+
 		if (!keys['L'])
 		{
 			lp = FALSE;
@@ -472,7 +351,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 			z += 0.02f;
 		}
 
-		if (keys[VK_UP])
+		if (keys[GLFW_KEY_W])
 		{
 
 			xpos -= (float)sin(heading * piover180) * 0.05f;
@@ -485,7 +364,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 			walkbias = (float)sin(walkbiasangle * piover180) / 20.0f;
 		}
 
-		if (keys[VK_DOWN])
+		if (keys[GLFW_KEY_S])
 		{
 			xpos += (float)sin(heading * piover180) * 0.05f;
 			zpos += (float)cos(heading * piover180) * 0.05f;
@@ -496,13 +375,13 @@ int WINAPI WinMain(HINSTANCE hInstance,
 			walkbias = (float)sin(walkbiasangle * piover180) / 20.0f;
 		}
 
-		if (keys[VK_RIGHT])
+		if (keys[GLFW_KEY_D])
 		{
 			heading -= 1.0f;
 			yrot = heading;
 		}
 
-		if (keys[VK_LEFT])
+		if (keys[GLFW_KEY_A])
 		{
 			heading += 1.0f;
 			yrot = heading;
@@ -517,5 +396,16 @@ int WINAPI WinMain(HINSTANCE hInstance,
 		{
 			lookupdown += 1.0f;
 		}
+
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+
+		glClearColor(0.3f, 0.0f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
+
+	glfwDestroyWindow(window);
+	glfwTerminate();
+	exit(EXIT_SUCCESS);
+	return 0;
 }
