@@ -16,6 +16,9 @@
 
 #include "GLFW/glfw3.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 static HGLRC hRC; // Permanent Rendering Context
 static HDC hDC;   // Private GDI Device Context
 
@@ -102,45 +105,37 @@ void SetupWorld()
 }
 
 // Load Bitmaps And Convert To Textures
-// Disabled for now, you can add custom
-// loader like stbi or SOIL
-/*
 GLvoid LoadGLTextures()
 {
 	// Load Texture
-	AUX_RGBImageRec *texture1;
-
-	texture1=auxDIBImageLoad("Data/mud.bmp");
-	if (!texture1)
-	{
-		exit(1);
-	}
+	int w, h, comp;
+	unsigned char* image =
+	stbi_load("Data/mud.bmp", &w, &h, &comp, STBI_rgb);
 
 	// Create Nearest Filtered Texture
 	glGenTextures(3, &texture[0]);
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, texture1->sizeX, texture1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, texture1->data);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
 	// Create Linear Filtered Texture
 	glBindTexture(GL_TEXTURE_2D, texture[1]);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, texture1->sizeX, texture1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, texture1->data);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
 	// Create MipMapped Texture
 	glBindTexture(GL_TEXTURE_2D, texture[2]);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, texture1->sizeX, texture1->sizeY, GL_RGB, GL_UNSIGNED_BYTE, texture1->data);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, w, h, GL_RGB, GL_UNSIGNED_BYTE, image);
 };
 
-*/
 
 GLvoid InitGL(GLsizei Width, GLsizei Height) // This Will Be Called Right After The GL Window Is Created
 {
-	//LoadGLTextures();							// Load The Texture(s)
+	LoadGLTextures();							// Load The Texture(s)
 	glEnable(GL_TEXTURE_2D); // Enable Texture Mapping
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);	// Set The Blending Function For Translucency
@@ -283,7 +278,9 @@ int main(int argc, char *argv[])
 		ratio = width / (float)height;
 
 		glViewport(0, 0, width, height);
-		glClear(GL_COLOR_BUFFER_BIT);
+
+		glClearColor(0.3f, 0.0f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		DrawGLScene();
 
@@ -399,9 +396,6 @@ int main(int argc, char *argv[])
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-
-		glClearColor(0.3f, 0.0f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
 	glfwDestroyWindow(window);
